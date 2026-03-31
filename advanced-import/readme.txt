@@ -4,9 +4,9 @@ Contributors: addonspress, codersantosh, acmeit
 Donate link: https://addonspress.com/  
 Tags: demo import, theme import, widget import, customizer import, gutenberg import  
 Requires at least: 5.0  
-Tested up to: 6.7  
+Tested up to: 6.9  
 Requires PHP: 5.6.20  
-Stable tag: 1.4.5  
+Stable tag: 1.4.6
 License: GPLv2 or later  
 License URI: http://www.gnu.org/licenses/gpl-2.0.html  
 
@@ -225,6 +225,12 @@ Yes, many themes are using this plugin, for example, you can look on [CosmosWP T
 6. The frontend of Opus Blog after Import
 
 == Changelog ==
+
+= 1.4.6 =
+* Security Fix: Fixed Server-Side Request Forgery (SSRF) vulnerability in demo import from URL feature.
+  Now uses strict URL validation + wp_safe_remote_get() with reject_unsafe_urls.
+  Thanks to the security researcher who reported it.
+* Hardened all remote HTTP requests in the plugin for consistency.
 
 = 1.4.5 - 2025-01-14 =
 * Added: Introduced support for Blocks Navigation feature.

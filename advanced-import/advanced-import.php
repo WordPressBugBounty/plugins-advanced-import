@@ -14,7 +14,7 @@ if ( ! defined( 'WPINC' ) ) {
  * Plugin Name:       Advanced Import
  * Plugin URI:        https://addonspress.com/item/advanced-import
  * Description:       Easily import demo data for WordPress sites, including posts, pages, media, widgets, customizer settings, and Gutenberg Blocks with ease.
- * Version:           1.4.5
+ * Version:           1.4.6
  * Author:            AddonsPress
  * Author URI:        https://addonspress.com/
  * License:           GPL-2.0+
@@ -24,7 +24,7 @@ if ( ! defined( 'WPINC' ) ) {
  */
 
 /*Define Constants for this plugin*/
-define( 'ADVANCED_IMPORT_VERSION', '1.4.5' );
+define( 'ADVANCED_IMPORT_VERSION', '1.4.6' );
 define( 'ADVANCED_IMPORT_PLUGIN_NAME', 'advanced-import' );
 define( 'ADVANCED_IMPORT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ADVANCED_IMPORT_URL', plugin_dir_url( __FILE__ ) );

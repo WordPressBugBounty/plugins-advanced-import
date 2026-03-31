@@ -76,7 +76,7 @@ class Advanced_Import_Admin {
 	 * @access   public
 	 * @var      array    $demo_lists    Array of demo lists.
 	 */
-	protected $demo_lists = array();
+	public $demo_lists = array();
 
 	/**
 	 * Demo lists
@@ -85,7 +85,7 @@ class Advanced_Import_Admin {
 	 * @access   public
 	 * @var      array    $demo_lists    Array of demo lists.
 	 */
-	protected $is_pro_active = false;
+	public $is_pro_active = false;
 
 	/**
 	 * Array of delayed post for late process
@@ -219,7 +219,9 @@ class Advanced_Import_Admin {
 		$is_available = false;
 
 		/*if pro active everything is available*/
-		if ( $this->is_pro_active ) {
+		if ( isset( $item['has_access'] ) && $item['has_access'] ) {
+			$is_available = true;
+		} elseif ( $this->is_pro_active ) {
 			$is_available = true;
 		} elseif ( ! isset( $item['is_pro'] ) ) {/*if is_pro not set the $item is available*/
 			$is_available = true;/*template available since */
@@ -258,9 +260,10 @@ class Advanced_Import_Admin {
 		ob_start();
 
 		if ( $this->is_template_available( $item ) ) {
-			$plugins = isset( $item['plugins'] ) && is_array( $item['plugins'] ) ? ' data-plugins="' . esc_attr( wp_json_encode( $item['plugins'] ) ) . '"' : '';
+			$data_theme = isset( $item['theme']['slug'] ) && advanced_import_get_current_theme_slug() !== $item['theme']['slug'] ? 'data-theme="' . esc_attr( wp_json_encode( $item['theme'] ) ) . '"' : '';
+			$plugins    = isset( $item['plugins'] ) && is_array( $item['plugins'] ) ? ' data-plugins="' . esc_attr( wp_json_encode( $item['plugins'] ) ) . '"' : '';
 			?>
-			<a class="button ai-demo-import ai-item-import is-button is-default is-primary is-large button-primary" href="#" aria-label="<?php esc_attr_e( 'Import', 'advanced-import' ); ?>" <?php echo $plugins; ?>>
+			<a class="button ai-demo-import ai-item-import is-button is-default is-primary is-large button-primary" href="#" aria-label="<?php esc_attr_e( 'Import', 'advanced-import' ); ?>" <?php echo $plugins; ?> <?php echo $data_theme; ?>>
 				<span class="dashicons dashicons-download"></span><?php esc_html_e( 'Import', 'advanced-import' ); ?>
 			</a>
 			<?php
@@ -283,32 +286,23 @@ class Advanced_Import_Admin {
 	}
 
 	/**
-	 * Register the stylesheets for the admin area.
+	 * Enquee styles
 	 *
-	 * @since    1.0.8
-	 * @param  string $hook_suffix    current hook.
+	 * @since    1.4.6
 	 * @return void
 	 */
-	public function enqueue_styles( $hook_suffix ) {
-		if ( ! is_array( $this->hook_suffix ) || ! in_array( $hook_suffix, $this->hook_suffix ) ) {
-			return;
-		}
+	public function wp_enqueue_styles() {
 		wp_enqueue_style( $this->plugin_name, ADVANCED_IMPORT_URL . 'assets/css/advanced-import-admin' . ADVANCED_IMPORT_SCRIPT_PREFIX . '.css', array( 'wp-admin', 'dashicons' ), $this->version, 'all' );
 		wp_enqueue_media();
 	}
 
 	/**
-	 * Register the JavaScript for the admin area.
+	 * Enquee scripts
 	 *
-	 * @since    1.0.8
-	 * @param  string $hook_suffix    current hook.
+	 * @since    1.4.6
 	 * @return void
 	 */
-	public function enqueue_scripts( $hook_suffix ) {
-		if ( ! is_array( $this->hook_suffix ) || ! in_array( $hook_suffix, $this->hook_suffix ) ) {
-			return;
-		}
-
+	public function wp_enqueue_scripts() {
 		// Isotope Js.
 		wp_enqueue_script(
 			'isotope', // Handle.
@@ -346,6 +340,7 @@ class Advanced_Import_Admin {
 							'<ol><li class="warning">' . __( 'It is highly recommended to import demo on fresh WordPress installation to exactly replicate the theme demo. If no important data on your site, you can reset it from Reset Wizard at the top', 'advanced-import' ) . '</li>',
 							'<li>' . __( 'No existing posts, pages, categories, images, custom post types or any other data will be deleted or modified.', 'advanced-import' ) . '</li>',
 							'<li>' . __( 'It will install the plugins required for demo and activate them. Also posts, pages, images, widgets, & other data will get imported.', 'advanced-import' ) . '</li>',
+							'<li class="ai-theme-info">' . __( 'The demo will install following theme:', 'advanced-import' ) . 'ai_replace_theme' . '</li>' .
 							'<li class="ai-plugin-info">' . __( 'The demo will install following plugin/s:', 'advanced-import' ) . 'ai_replace_plugins' . '</li>' .
 							'<li>' . __( 'Please click on the Import button and wait, it will take some time to import the data.', 'advanced-import' ) . '</li></ol>'
 						),
@@ -378,6 +373,34 @@ class Advanced_Import_Admin {
 				),
 			)
 		);
+	}
+
+	/**
+	 * Register the stylesheets for the admin area.
+	 *
+	 * @since    1.0.8
+	 * @param  string $hook_suffix    current hook.
+	 * @return void
+	 */
+	public function enqueue_styles( $hook_suffix ) {
+		if ( ! is_array( $this->hook_suffix ) || ! in_array( $hook_suffix, $this->hook_suffix ) ) {
+			return;
+		}
+		$this->wp_enqueue_styles();
+	}
+
+	/**
+	 * Register the JavaScript for the admin area.
+	 *
+	 * @since    1.0.8
+	 * @param  string $hook_suffix    current hook.
+	 * @return void
+	 */
+	public function enqueue_scripts( $hook_suffix ) {
+		if ( ! is_array( $this->hook_suffix ) || ! in_array( $hook_suffix, $this->hook_suffix ) ) {
+			return;
+		}
+		$this->wp_enqueue_scripts();
 	}
 
 	/**
@@ -558,8 +581,12 @@ class Advanced_Import_Admin {
 		check_admin_referer( 'advanced-import' );
 
 		/*get file and what should do*/
-		$demo_file      = is_array( $_POST['demo_file'] ) ? (array) $_POST['demo_file'] : sanitize_text_field( $_POST['demo_file'] );
-		$demo_file_type = sanitize_text_field( $_POST['demo_file_type'] );
+		$demo_file      = isset( $_POST['demo_file'] )
+			? ( is_array( $_POST['demo_file'] )
+				? array_map( 'sanitize_text_field', wp_unslash( $_POST['demo_file'] ) )
+				: sanitize_text_field( wp_unslash( $_POST['demo_file'] ) ) )
+			: '';
+		$demo_file_type = isset( $_POST['demo_file_type'] ) ? sanitize_text_field( wp_unslash( $_POST['demo_file_type'] ) ) : '';
 
 		/*from file*/
 		if ( $demo_file_type == 'file' ) {
@@ -608,19 +635,83 @@ class Advanced_Import_Admin {
 			);
 		} elseif ( $demo_file_type == 'url' ) {
 
-			/*finally fetch the file from remote*/
-			$response = wp_remote_get( $demo_file );
+			if ( is_array( $demo_file ) ) {
+				wp_send_json_error(
+					array(
+						'error'   => 1,
+						'message' => esc_html__( 'Invalid demo file URL.', 'advanced-import' ),
+					)
+				);
+			}
 
-			if ( is_array( $response ) && ! is_wp_error( $response ) ) {
+			$demo_file = esc_url_raw( $demo_file, array( 'http', 'https' ) );
+			if ( empty( $demo_file ) || ! wp_http_validate_url( $demo_file ) ) {
+				wp_send_json_error(
+					array(
+						'error'   => 1,
+						'message' => esc_html__( 'Invalid demo file URL.', 'advanced-import' ),
+					)
+				);
+			}
+
+			$demo_file_host = wp_parse_url( $demo_file, PHP_URL_HOST );
+			if ( empty( $demo_file_host ) ) {
+				wp_send_json_error(
+					array(
+						'error'   => 1,
+						'message' => esc_html__( 'Invalid demo file URL host.', 'advanced-import' ),
+					)
+				);
+			}
+
+			$allowed_hosts = (array) apply_filters( 'advanced_import_allowed_demo_hosts', array() );
+			if ( ! empty( $allowed_hosts ) ) {
+				$allowed_hosts = array_map( 'strtolower', array_map( 'trim', $allowed_hosts ) );
+				if ( ! in_array( strtolower( $demo_file_host ), $allowed_hosts, true ) ) {
+					wp_send_json_error(
+						array(
+							'error'   => 1,
+							'message' => esc_html__( 'Demo URL host is not allowed.', 'advanced-import' ),
+						)
+					);
+				}
+			}
+
+			$max_size     = (int) apply_filters( 'import_attachment_size_limit', 0 );
+			$request_args = array(
+				'timeout'            => 30,
+				'redirection'        => 3,
+				'reject_unsafe_urls' => true,
+			);
+			if ( ! empty( $max_size ) ) {
+				$request_args['limit_response_size'] = $max_size;
+			}
+
+			/*finally fetch the file from remote*/
+			$response = wp_safe_remote_get( $demo_file, $request_args );
+
+			if ( ! is_wp_error( $response ) ) {
+				$response_code = (int) wp_remote_retrieve_response_code( $response );
+				$response_body = wp_remote_retrieve_body( $response );
+				if ( 200 !== $response_code || empty( $response_body ) ) {
+					wp_send_json_error(
+						array(
+							'error'   => 1,
+							'message' => esc_html__( 'Remote file could not be downloaded.', 'advanced-import' ),
+						)
+					);
+				}
+
 				require_once ABSPATH . 'wp-admin/includes/file.php';
 				WP_Filesystem();
 				global $wp_filesystem;
-				$file_permission = 0777;
+				$file_permission = defined( 'FS_CHMOD_DIR' ) ? FS_CHMOD_DIR : 0755;
 				if ( ! file_exists( ADVANCED_IMPORT_TEMP_ZIP ) ) {
 					$wp_filesystem->mkdir( ADVANCED_IMPORT_TEMP_ZIP, $file_permission, true );
 				}
 				$temp_import_zip = trailingslashit( ADVANCED_IMPORT_TEMP_ZIP ) . 'temp-import.zip';
-				$wp_filesystem->put_contents( $temp_import_zip, $response['body'], 0777 );
+				$file_mode       = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
+				$wp_filesystem->put_contents( $temp_import_zip, $response_body, $file_mode );
 
 			} else {
 				/*required to download file failed.*/
@@ -715,7 +806,7 @@ class Advanced_Import_Admin {
 	 *
 	 * @return void
 	 */
-	public function demo_list( $demo_lists, $total_demo ) {
+	public function demo_list( $demo_lists, $total_demo, $zip_form = true ) {
 		?>
 		<div class="ai-filter-header">
 			<div class="ai-filter-tabs">
@@ -741,11 +832,17 @@ class Advanced_Import_Admin {
 				<div class="ai-search-control">
 					<input id="ai-filter-search-input" class="ai-search-filter" type="text" placeholder="<?php esc_attr_e( 'Search...', 'advanced-import' ); ?>">
 				</div>
-				<ul class="ai-form-type">
-					<li class="ai-form-file-import">
-						<?php esc_html_e( 'Upload zip', 'advanced-import' ); ?>
-					</li>
-				</ul>
+				<?php
+				if ( $zip_form ) {
+					?>
+					<ul class="ai-form-type">
+						<li class="ai-form-file-import">
+							<?php esc_html_e( 'Upload zip', 'advanced-import' ); ?>
+						</li>
+					</ul>
+					<?php
+				}
+				?>
 			</div>
 		</div>
 		<div class="ai-filter-content" id="ai-filter-content">
@@ -822,7 +919,9 @@ class Advanced_Import_Admin {
 						echo $this->is_template_available( $demo_list ) ? '' : ' ai-pro-item'
 					?>
 					"
-						<?php echo $this->is_template_available( $demo_list ) ? $data_template . ' ' . $data_template_type : ''; ?>
+						<?php
+						echo $this->is_template_available( $demo_list ) ? $data_template . ' ' . $data_template_type : '';
+						?>
 					>
 						<?php
 						wp_nonce_field( 'advanced-import' );
@@ -830,10 +929,17 @@ class Advanced_Import_Admin {
 						<div class="ai-item-preview">
 							<div class="ai-item-screenshot">
 								<img src="<?php echo esc_url( $demo_list['screenshot_url'] ); ?>">
-
 							</div>
 							<h4 class="ai-author-info"><?php esc_html_e( 'Author: ', 'advanced-import' ); ?><?php echo esc_html( isset( $demo_list['author'] ) ? $demo_list['author'] : wp_get_theme()->get( 'Author' ) ); ?></h4>
-							<div class="ai-details"><?php esc_html_e( 'Details', 'advanced-import' ); ?></div>
+							<div class="ai-details">
+								<?php
+								if ( isset( $demo_list['theme']['title'] ) ) {
+									echo esc_html( $demo_list['theme']['title'] );
+								} else {
+									esc_html_e( 'Details', 'advanced-import' );
+								}
+								?>
+							</div>
 							<?php
 							if ( $this->is_pro( $demo_list ) ) {
 								?>
@@ -938,6 +1044,66 @@ class Advanced_Import_Admin {
 	}
 
 	/**
+	 * 1.5 step Before Plugin Installation step View
+	 * return void || boolean
+	 */
+	public function theme_screen() {
+
+		/*check for security*/
+		check_admin_referer( 'advanced-import' );
+		$theme_info = isset( $_POST['themeInfo'] ) ? $_POST['themeInfo'] : array();
+		if ( ! current_user_can( 'install_themes' ) || ! $theme_info ) {
+			wp_send_json_error(
+				array(
+					'message' => esc_html__( 'Sorry, you are not allowed to install demo on this site.', 'advanced-import' ),
+				)
+			);
+		}
+
+		/*for safety: delete_transient();*/
+		$this->reset_transient();
+
+		do_action( 'advanced_import_before_theme_screen' );
+		?>
+		<div class="ai-notification-title">
+			<p><?php printf( esc_html__( 'We are installing the %s theme...', 'advanced-import' ), esc_html( $theme_info['title'] ) ); ?></p>
+		</div>
+
+		<?php
+		do_action( 'advanced_import_after_theme_screen' );
+		exit;
+	}
+
+	/*
+	callback function for wp_ajax_install_theme
+	* Install and activate theme
+	* */
+	function install_theme() {
+
+		/*check for security*/
+		check_admin_referer( 'advanced-import' );
+		$theme_info = isset( $_POST['themeInfo'] ) ? $_POST['themeInfo'] : array();
+		if ( ! current_user_can( 'install_themes' ) || ! $theme_info ) {
+			wp_send_json_error(
+				array(
+					'message' => esc_html__( 'Sorry, you are not allowed to install demo on this site.', 'advanced-import' ),
+				)
+			);
+		}
+
+		$theme_info['name'] = $theme_info['title'];
+		$result             = advanced_import_install_theme( $theme_info );
+
+		if ( ! $result['success'] ) {
+			$response['errorCode']    = $result['code'];
+			$response['errorMessage'] = $result['message'];
+
+			wp_send_json_error( $result );
+		}
+		wp_send_json_success( $result );
+	}
+
+	/**
 	 * 2nd step Plugin Installation step View
 	 * return void || boolean
 	 */
@@ -1005,9 +1171,29 @@ class Advanced_Import_Admin {
 		if ( $this->current_template_type == 'array' ) {
 			$type = strtok( $file, '.' );
 			if ( isset( $this->current_template_url[ $type ] ) ) {
-				$request  = wp_remote_get( $this->current_template_url[ $type ] );
+				$template_url = esc_url_raw( $this->current_template_url[ $type ], array( 'http', 'https' ) );
+				if ( empty( $template_url ) || ! wp_http_validate_url( $template_url ) ) {
+					return array();
+				}
+
+				$request = wp_safe_remote_get(
+					$template_url,
+					array(
+						'timeout'            => 30,
+						'redirection'        => 3,
+						'reject_unsafe_urls' => true,
+					)
+				);
+				if ( is_wp_error( $request ) || 200 !== (int) wp_remote_retrieve_response_code( $request ) ) {
+					return array();
+				}
+
 				$response = wp_remote_retrieve_body( $request );
-				$result   = json_decode( $response, true );
+				if ( empty( $response ) ) {
+					return array();
+				}
+
+				$result = json_decode( $response, true );
 				set_transient( $file, $result, 1000 );
 				return $result;
 			}
@@ -1622,12 +1808,21 @@ class Advanced_Import_Admin {
 							}
 						}
 						/* Update metadata for an attachment.*/
-						wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( $attach_id, $upload['file'] ) );
+						$file_path = $upload['file'];
+
+						if ( file_exists( $file_path ) && is_readable( $file_path ) ) {
+							$metadata = wp_generate_attachment_metadata( $attach_id, $file_path );
+							if ( ! is_wp_error( $metadata ) ) {
+								wp_update_attachment_metadata( $attach_id, $metadata );
+							}
+						} else {
+							error_log( "Attachment file missing or unreadable: $file_path" );
+						}
 
 						/*remap resized image URLs, works by stripping the extension and remapping the URL stub.*/
 						if ( preg_match( '!^image/!', $info['type'] ) ) {
 							$parts = pathinfo( $remote_url );
-							$name  = basename( $parts['basename'], ".{$parts['extension']}" ); // PATHINFO_FILENAME in PHP 5.2
+							$name  = basename( $parts['basename'], ".{$parts['extension']}" ); // PATHINFO_FILENAME in PHP 5.2.
 
 							$parts_new = pathinfo( $upload['url'] );
 							$name_new  = basename( $parts_new['basename'], ".{$parts_new['extension']}" );
@@ -1904,7 +2099,7 @@ class Advanced_Import_Admin {
 						}
 
 						if ( ( isset( $post_data['meta']['_elementor_data'] ) && ! empty( $post_data['meta']['_elementor_data'] ) ) ||
-							( isset( $post_data['meta']['_elementor_css'] ) && ! ! empty( $post_data['meta']['_elementor_css'] ) )
+							( isset( $post_data['meta']['_elementor_css'] ) && (bool) empty( $post_data['meta']['_elementor_css'] ) )
 						) {
 							advanced_import_elementor()->elementor_post( $post_id );
 						}
@@ -2116,6 +2311,7 @@ class Advanced_Import_Admin {
 		$file_name  = basename( $url );
 		$local_file = ADVANCED_IMPORT_TEMP_UPLOADS . $file_name;
 		$upload     = false;
+		$headers    = array();
 
 		/*
 		if file is already on local, return file information
@@ -2142,14 +2338,37 @@ class Advanced_Import_Admin {
 
 			$max_size = (int) apply_filters( 'import_attachment_size_limit', 0 );
 
+			$url = esc_url_raw( $url, array( 'http', 'https' ) );
+			if ( empty( $url ) || ! wp_http_validate_url( $url ) ) {
+				wp_delete_file( $upload['file'] );
+				return new WP_Error( 'import_file_error', esc_html__( 'Invalid remote file URL', 'advanced-import' ) );
+			}
+
+			$request_args = array(
+				'timeout'            => 30,
+				'redirection'        => 3,
+				'reject_unsafe_urls' => true,
+			);
+			if ( ! empty( $max_size ) ) {
+				$request_args['limit_response_size'] = $max_size;
+			}
+
 			/*finally fetch the file from remote*/
-			$response = wp_remote_get( $url );
-			if ( is_array( $response ) && ! is_wp_error( $response ) ) {
+			$response = wp_safe_remote_get( $url, $request_args );
+			if ( ! is_wp_error( $response ) ) {
+				$response_code = (int) wp_remote_retrieve_response_code( $response );
+				$response_body = wp_remote_retrieve_body( $response );
+				if ( 200 !== $response_code || empty( $response_body ) ) {
+					wp_delete_file( $upload['file'] );
+					return new WP_Error( 'import_file_error', esc_html__( 'Remote file could not be downloaded', 'advanced-import' ) );
+				}
+
 				require_once ABSPATH . 'wp-admin/includes/file.php';
-				$headers = $response['headers'];
+				$headers = (array) wp_remote_retrieve_headers( $response );
 				WP_Filesystem();
 				global $wp_filesystem;
-				$wp_filesystem->put_contents( $upload['file'], $response['body'] );
+				$file_mode = defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644;
+				$wp_filesystem->put_contents( $upload['file'], $response_body, $file_mode );
 			} else {
 				/*required to download file failed.*/
 				wp_delete_file( $upload['file'] );
@@ -2159,7 +2378,7 @@ class Advanced_Import_Admin {
 			$file_size = filesize( $upload['file'] );
 
 			/*check for size*/
-			if ( isset( $headers['content-length'] ) && $file_size != $headers['content-length'] ) {
+			if ( isset( $headers['content-length'] ) && $file_size != (int) $headers['content-length'] ) {
 				wp_delete_file( $upload['file'] );
 				return new WP_Error( 'import_file_error', esc_html__( 'Remote file is incorrect size', 'advanced-import' ) );
 			}

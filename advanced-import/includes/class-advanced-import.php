@@ -221,6 +221,11 @@ class Advanced_Import {
 		require_once ADVANCED_IMPORT_PATH . 'admin/class-elementor-import.php';
 
 		/**
+		 * Template import
+		 */
+		require_once ADVANCED_IMPORT_PATH . 'admin/class-advanced-import-template.php';
+
+		/**
 		 * The class responsible for WordPress rset
 		 */
 		require_once ADVANCED_IMPORT_PATH . 'admin/class-reset.php';
@@ -276,6 +281,8 @@ class Advanced_Import {
 		/*ajax process*/
 		$this->loader->add_action( 'wp_ajax_advanced_import_ajax_setup', $this->admin, 'upload_zip' );
 		$this->loader->add_action( 'wp_ajax_demo_download_and_unzip', $this->admin, 'demo_download_and_unzip' );
+		$this->loader->add_action( 'wp_ajax_theme_screen', $this->admin, 'theme_screen' );
+		$this->loader->add_action( 'wp_ajax_install_theme', $this->admin, 'install_theme' );
 		$this->loader->add_action( 'wp_ajax_plugin_screen', $this->admin, 'plugin_screen' );
 		$this->loader->add_action( 'wp_ajax_install_plugin', $this->admin, 'install_plugin' );
 		$this->loader->add_action( 'wp_ajax_content_screen', $this->admin, 'content_screen' );
